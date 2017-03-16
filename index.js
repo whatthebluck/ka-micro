@@ -1,12 +1,12 @@
 const micro = require('micro')
 const stripe = require('stripe')('sk_test_TrkNTx6ieFrACpGxHi0jHUmC')
 const firebase = require("firebase-admin")
-const { composeP, compose} = require("ramda")
+const { composeP } = require("ramda")
 const cert = require('./privateKey.json')
 
 const { json, send } = micro
 
-firebase.initializeApp( {
+firebase.initializeApp({
   credential: firebase.credential.cert(cert),
   databaseURL: "https://koken-addons.firebaseio.com",
 });
@@ -45,7 +45,6 @@ const createOrGetUser = async (email, password) => {
  */
 const addChargeToUser = user => charge => {
 
-
   const chargeRef = firebase.database()
     .ref(`users/${user.uid}/charges/${charge.id}`)
 
@@ -58,7 +57,7 @@ const addChargeToUser = user => charge => {
   }
 
   // async
-  chargeRef.set(chargeValues);
+  chargeRef.set(chargeValues)
 
   return { user, charge }
 
@@ -66,20 +65,15 @@ const addChargeToUser = user => charge => {
 
 const server = micro(async (req, res) => {
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
   const { token, email, password} = await json(req)
-
   const user = await createOrGetUser(email, password)
 
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   if(req.url === '/user/create' && req.method === 'POST') {
-
     const user = await createOrGetUser(email, password)
-
     const createChargeAndAddToUser = composeP(addChargeToUser(user), createCharge)
-
     return createChargeAndAddToUser(token)
-
   }
 
   const statusCode = 404
