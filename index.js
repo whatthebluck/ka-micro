@@ -1,7 +1,7 @@
 const micro = require('micro')
 const stripe = require('stripe')('sk_test_TrkNTx6ieFrACpGxHi0jHUmC')
 const firebase = require("firebase-admin")
-const { composeP } = require("ramda")
+// const { composeP } = require("ramda")
 const cert = require('./privateKey.json')
 
 const { json, send } = micro
@@ -16,32 +16,12 @@ firebase.initializeApp({
  * Create a charge
  * @param token
  */
-const createCharge = async token  =>
-  stripe.charges.create({
-    amount: 6000,
-    currency: "usd",
-    description: "Example charge",
-    source: token,
-  })
-
-
-/**
- * Create or retrieve a user
- * @param email
- * @param password
- * @param firstName
- * @param lastName
- */
-const createOrGetUser = async (email, password, firstName, lastName) => {
-  const auth = firebase.auth()
-  const displayName = firstName || (firstName && lastName) && `${firstName} ${lastName}`
-  try {
-    return await auth.getUserByEmail(email)
-  } catch(e) {
-    return await auth.createUser({ email, password, displayName })
-  }
-}
-
+const createCharge = async token  => stripe.charges.create({
+  amount: 6000,
+  currency: "usd",
+  description: "Example charge",
+  source: token,
+})
 
 /**
  * Save the charge to the user
@@ -60,19 +40,23 @@ const addChargeToUser = user => ({ id, amount, livemode, paid, status, descripti
  */
 const server = micro(async (req, res) => {
 
-  const { token, email, password, firstName, lastName} = await json(req)
+  res.setHeader('Access-Control-Allow-Origin', '*')
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
-  if(req.url === '/user/create' && req.method === 'POST') {
-    const user = await createOrGetUser(email, password, firstName, lastName)
-    const createChargeAndAddToUser = composeP(addChargeToUser(user), createCharge)
-    return createChargeAndAddToUser(token)
+  if(req.url !== '/user/create' || req.method !== 'POST') {
+    return send(res, 404, { message: 'Not found' })
   }
 
-  const statusCode = 404
-  const data = { error: 'Not found' }
-  return send(res, statusCode, data)
+  const auth = firebase.auth()
+  const { email, password, firstName, lastName} = await json(req)
+
+  // TODO this won't work for just first names
+  const displayName = firstName || (firstName && lastName) && `${firstName} ${lastName}`
+
+  try {
+    return await auth.createUser({ email, password, displayName })
+  } catch(e) {
+    return send(res, 400, e)
+  }
 
 })
 
