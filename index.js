@@ -29,49 +29,43 @@ const createCharge = async token  =>
  * Create or retrieve a user
  * @param email
  * @param password
+ * @param firstName
+ * @param lastName
  */
-const createOrGetUser = async (email, password) => {
+const createOrGetUser = async (email, password, firstName, lastName) => {
   const auth = firebase.auth()
+  const displayName = firstName || (firstName && lastName) && `${firstName} ${lastName}`
   try {
     return await auth.getUserByEmail(email)
   } catch(e) {
-    return await auth.createUser({ email, password })
+    return await auth.createUser({ email, password, displayName })
   }
 }
+
 
 /**
  * Save the charge to the user
  * @param user
  */
-const addChargeToUser = user => charge => {
-
+const addChargeToUser = user => ({ id, amount, livemode, paid, status, description }) => {
   const chargeRef = firebase.database()
-    .ref(`users/${user.uid}/charges/${charge.id}`)
-
-  const chargeValues = {
-    amount: charge.amount,
-    livemode: charge.livemode,
-    paid: charge.paid,
-    status: charge.status,
-    description: charge.description,
-  }
-
-  // async
-  chargeRef.set(chargeValues)
-
-  return { user, charge }
-
+    .ref(`users/${user.uid}/charges/${id}`)
+  chargeRef.set({ id, amount, livemode, paid, status, description })
+  return { user, charge: id }
 }
 
+
+/**
+ * server
+ */
 const server = micro(async (req, res) => {
 
-  const { token, email, password} = await json(req)
-  const user = await createOrGetUser(email, password)
+  const { token, email, password, firstName, lastName} = await json(req)
 
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if(req.url === '/user/create' && req.method === 'POST') {
-    const user = await createOrGetUser(email, password)
+    const user = await createOrGetUser(email, password, firstName, lastName)
     const createChargeAndAddToUser = composeP(addChargeToUser(user), createCharge)
     return createChargeAndAddToUser(token)
   }
@@ -81,5 +75,6 @@ const server = micro(async (req, res) => {
   return send(res, statusCode, data)
 
 })
+
 
 server.listen(3001)
