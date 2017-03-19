@@ -19,6 +19,7 @@ const server = micro(async (req, res) => {
 
   res.setHeader('Access-Control-Allow-Origin', '*')
 
+
   const route = pathMatch()
   const {pathname} = parse(req.url)
 
@@ -27,7 +28,6 @@ const server = micro(async (req, res) => {
 
   const createUserMatch = route('/user/create')
   const createUser = createUserMatch(pathname)
-
 
   if(getUser && req.method === 'GET') {
     try {
@@ -38,7 +38,7 @@ const server = micro(async (req, res) => {
     }
   }
 
-  if(createUser && req.method !== 'POST') {
+  if(createUser && req.method === 'POST') {
     const auth = firebase.auth()
     const { email, password, firstName, lastName} = await json(req)
 
