@@ -19,6 +19,7 @@ firebase.initializeApp({
 const server = micro(async (req, res) => {
 
   res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization')
 
   const route = pathMatch()
   const {pathname} = parse(req.url)
@@ -29,10 +30,15 @@ const server = micro(async (req, res) => {
   const createUserMatch = route('/user/create')
   const createUser = createUserMatch(pathname)
 
+  const getUserThemesMatch = route('/user/themes')
+  const getUserThemes = getUserThemesMatch(pathname)
+
   const createChargeMatch = route('/charge/create')
   const createCharge = createChargeMatch(pathname)
 
-  if(getUser && req.method === 'GET') {
+  if(req.method === 'OPTIONS') return send(res, 200)
+
+  if(getUser) {
     try {
       const token = req.headers.authorization.replace('Bearer ', '')
       return await firebase.auth().verifyIdToken(token)
@@ -41,7 +47,19 @@ const server = micro(async (req, res) => {
     }
   }
 
-  if(createUser && req.method === 'POST') {
+  if(getUserThemes) {
+    try {
+      const token = req.headers.authorization.replace('Bearer ', '')
+      const user = await firebase.auth().verifyIdToken(token)
+      const db = firebase.database();
+      const ref = db.ref(`users/${user.uid}/products`)
+      return ref.once('value')
+    } catch(e) {
+      return send(res, 400, e)
+    }
+  }
+
+  if(createUser) {
     const auth = firebase.auth()
     const { email, password, firstName, lastName} = await json(req)
 
@@ -55,13 +73,13 @@ const server = micro(async (req, res) => {
     }
   }
 
- if(createCharge && req.method === 'POST') {
+ if(createCharge) {
     const { token, user, product } = await json(req)
 
     try {
       // Charge the user's card:
       const charge = await stripe.charges.create({
-        description: product.excerpt,
+        description: `Koken Addons ${product.name}`,
         amount: product.price,
         currency: 'USD',
         source: token.id,
