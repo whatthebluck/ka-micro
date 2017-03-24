@@ -27,12 +27,6 @@ const server = micro(async (req, res) => {
   const getUserMatch = route('/user')
   const getUser = getUserMatch(pathname)
 
-  const createUserMatch = route('/user/create')
-  const createUser = createUserMatch(pathname)
-
-  const getUserThemesMatch = route('/user/themes')
-  const getUserThemes = getUserThemesMatch(pathname)
-
   const createChargeMatch = route('/charge/create')
   const createCharge = createChargeMatch(pathname)
 
@@ -43,33 +37,7 @@ const server = micro(async (req, res) => {
       const token = req.headers.authorization.replace('Bearer ', '')
       return await firebase.auth().verifyIdToken(token)
     } catch(e) {
-      return send(res, 400, e)
-    }
-  }
-
-  if(getUserThemes) {
-    try {
-      const token = req.headers.authorization.replace('Bearer ', '')
-      const user = await firebase.auth().verifyIdToken(token)
-      const db = firebase.database();
-      const ref = db.ref(`users/${user.uid}/products`)
-      return ref.once('value')
-    } catch(e) {
-      return send(res, 400, e)
-    }
-  }
-
-  if(createUser) {
-    const auth = firebase.auth()
-    const { email, password, firstName, lastName} = await json(req)
-
-    // TODO this won't work for just first names
-    const displayName = firstName || (firstName && lastName) && `${firstName} ${lastName}`
-
-    try {
-      return await auth.createUser({ email, password, displayName })
-    } catch(e) {
-      return send(res, 400, e)
+      return send(                                                            res, 400, e.message)
     }
   }
 
@@ -92,7 +60,7 @@ const server = micro(async (req, res) => {
       return ref.set({ charge: charge.id, expiry, product: product.id})
     } catch(e) {
       console.log(e)
-      return send(res, 400, e)
+      return send(res, 400, e.message)
     }
   }
 
